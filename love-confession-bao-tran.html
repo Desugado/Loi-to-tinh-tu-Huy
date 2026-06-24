@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gửi Bảo Trân 💌</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Be+Vietnam+Pro:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --rose: #c0394b;
+    --rose-light: #f7c5cc;
+    --rose-pale: #fff0f2;
+    --gold: #c8935a;
+    --cream: #fdf6f0;
+    --dark: #2a1a1f;
+    --text: #4a2e35;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--cream);
+    font-family: 'Be Vietnam Pro', sans-serif;
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  /* ── STAGE 1: opening screen ── */
+  #opening {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: var(--cream);
+    z-index: 100;
+    transition: opacity 1.2s ease, visibility 1.2s;
+  }
+  #opening.fade-out { opacity: 0; visibility: hidden; }
+
+  .tagline {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1rem, 3vw, 1.3rem);
+    color: var(--rose);
+    letter-spacing: 0.15em;
+    margin-bottom: 2.5rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.4s forwards;
+  }
+
+  #heart-btn {
+    position: relative;
+    width: 110px; height: 110px;
+    border: none; background: none;
+    cursor: pointer;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .heart-svg { width: 100%; height: 100%; transition: transform 0.15s; }
+  #heart-btn:hover .heart-svg { transform: scale(1.08); }
+  #heart-btn:active .heart-svg { transform: scale(0.94); }
+
+  .heart-path {
+    fill: var(--rose);
+    filter: drop-shadow(0 4px 18px rgba(192,57,75,0.35));
+    transition: filter 0.3s;
+  }
+  #heart-btn:hover .heart-path {
+    filter: drop-shadow(0 6px 26px rgba(192,57,75,0.55));
+  }
+
+  .pulse-ring {
+    position: absolute; inset: -12px;
+    border-radius: 50%;
+    border: 2px solid rgba(192,57,75,0.25);
+    animation: pulse 2.2s ease-out infinite;
+  }
+  .pulse-ring:nth-child(2) { animation-delay: 0.7s; }
+
+  @keyframes pulse {
+    0%  { transform: scale(0.8); opacity: 0.6; }
+    100%{ transform: scale(1.7); opacity: 0; }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .hint {
+    margin-top: 1.8rem;
+    font-size: 0.8rem;
+    color: rgba(74,46,53,0.45);
+    letter-spacing: 0.08em;
+    opacity: 0;
+    animation: fadeUp 1s ease 1s forwards;
+  }
+
+  /* ── STAGE 2: main canvas ── */
+  #main { opacity: 0; transition: opacity 1.4s ease; pointer-events: none; }
+  #main.visible { opacity: 1; pointer-events: all; }
+
+  /* petals bg */
+  #petals-bg {
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 0;
+    overflow: hidden;
+  }
+
+  /* canvas for the tree */
+  #tree-canvas {
+    display: block;
+    margin: 0 auto;
+    position: relative; z-index: 1;
+  }
+
+  /* letter section */
+  #letter-section {
+    position: relative; z-index: 2;
+    max-width: 680px;
+    margin: 0 auto 80px;
+    padding: 0 1.5rem;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 1.2s ease, transform 1.2s ease;
+  }
+  #letter-section.show { opacity: 1; transform: translateY(0); }
+
+  .envelope-deco {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  .envelope-deco svg { width: 52px; height: 52px; }
+
+  .letter-card {
+    background: #fff;
+    border: 1px solid rgba(192,57,75,0.18);
+    border-radius: 18px;
+    padding: 3rem 3.5rem;
+    box-shadow: 0 8px 40px rgba(192,57,75,0.08), 0 2px 8px rgba(0,0,0,0.04);
+    position: relative;
+    overflow: hidden;
+  }
+  .letter-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--rose-light), var(--rose), var(--gold), var(--rose), var(--rose-light));
+  }
+
+  .letter-greeting {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.45rem;
+    font-weight: 600;
+    color: var(--rose);
+    margin-bottom: 1.6rem;
+  }
+
+  .letter-body {
+    font-size: 1.05rem;
+    line-height: 1.95;
+    color: var(--text);
+    font-weight: 300;
+  }
+  .letter-body p { margin-bottom: 1rem; }
+
+  .letter-question {
+    display: block;
+    margin-top: 1.8rem;
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 1.2rem;
+    color: var(--rose);
+    text-align: center;
+  }
+
+  /* answer buttons */
+  .answer-wrap {
+    display: flex; gap: 1rem; justify-content: center;
+    margin-top: 2.2rem;
+    flex-wrap: wrap;
+  }
+  .btn-yes, .btn-no {
+    border: none; cursor: pointer;
+    border-radius: 50px;
+    font-family: 'Be Vietnam Pro', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    padding: 0.75rem 2.2rem;
+    transition: transform 0.15s, box-shadow 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .btn-yes {
+    background: var(--rose);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(192,57,75,0.35);
+  }
+  .btn-yes:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(192,57,75,0.45); }
+  .btn-no {
+    background: transparent;
+    color: var(--rose);
+    border: 1.5px solid var(--rose-light);
+  }
+  .btn-no:hover { background: var(--rose-pale); }
+
+  /* yes overlay */
+  #yes-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(253,246,240,0.97);
+    z-index: 200;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+  }
+  #yes-overlay.show { display: flex; animation: fadeUp 0.8s ease forwards; }
+  .yes-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 6vw, 3rem);
+    color: var(--rose);
+    margin-bottom: 1rem;
+  }
+  .yes-sub {
+    font-size: 1.1rem;
+    color: var(--text);
+    opacity: 0.7;
+    max-width: 400px;
+    line-height: 1.7;
+  }
+  .hearts-burst {
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    animation: bounce 0.6s ease infinite alternate;
+  }
+  @keyframes bounce {
+    from { transform: scale(1); }
+    to   { transform: scale(1.18); }
+  }
+
+  /* falling petals */
+  .petal {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50% 0;
+    opacity: 0.7;
+    animation: fall linear infinite;
+    pointer-events: none;
+  }
+  @keyframes fall {
+    0%   { transform: translateY(-20px) rotate(0deg); opacity: 0.7; }
+    100% { transform: translateY(110vh) rotate(540deg); opacity: 0; }
+  }
+
+  @media (max-width: 500px) {
+    .letter-card { padding: 2rem 1.5rem; }
+    .letter-body { font-size: 0.97rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── OPENING SCREEN ── -->
+<section id="opening" aria-label="Màn hình mở đầu">
+  <p class="tagline">Có điều Huy muốn nói với em…</p>
+  <button id="heart-btn" aria-label="Bấm vào trái tim">
+    <span class="pulse-ring"></span>
+    <span class="pulse-ring"></span>
+    <svg class="heart-svg" viewBox="0 0 100 90" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path class="heart-path" d="M50 82 C50 82 8 54 8 26 C8 12 18 4 28 4 C37 4 44 10 50 18 C56 10 63 4 72 4 C82 4 92 12 92 26 C92 54 50 82 50 82Z"/>
+    </svg>
+  </button>
+  <p class="hint">nhấn vào trái tim ♡</p>
+</section>
+
+<!-- ── MAIN SCENE ── -->
+<div id="main" aria-label="Nội dung chính" role="main">
+  <div id="petals-bg" aria-hidden="true"></div>
+  <canvas id="tree-canvas" width="700" height="520" aria-label="Cây tình yêu nở hoa" role="img"></canvas>
+  <section id="letter-section" aria-label="Thư tỏ tình">
+    <div class="envelope-deco" aria-hidden="true">
+      <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="14" width="44" height="30" rx="4" fill="#fff0f2" stroke="#c0394b" stroke-width="1.5"/>
+        <path d="M4 14 L26 30 L48 14" stroke="#c0394b" stroke-width="1.5" fill="none"/>
+        <path d="M26 12 C26 12 22 6 26 4 C30 6 26 12 26 12Z" fill="#c0394b"/>
+        <circle cx="26" cy="4" r="2" fill="#c8935a"/>
+      </svg>
+    </div>
+    <div class="letter-card" role="article">
+      <p class="letter-greeting">Gửi Bảo Trân của Huy,</p>
+      <div class="letter-body">
+        <p>Huy từng nghĩ tình cảm của mình thì chỉ cần mình biết, như một bí mật nhỏ, không cần ai biết đến.</p>
+        <p>Nhưng mà rồi Huy gặp được em, Huy nhận ra, có những tình cảm nếu cứ giấu đi thì sẽ thành dang dở.</p>
+        <p>Huy yêu em, không phải là điều mập mờ, hay lưng chừng, càng không phải là suy nghĩ nhất thời nữa. Là rõ ràng, là muốn đồng hành cùng em ở những chặng đường cũng như các cột mốc sắp tới, là muốn cùng em đi qua những ngày bình thường nhất, và muốn là người cho em cảm giác là <em>em</em> nhất.</p>
+        <p><strong>Em không phải là bí mật — anh yêu em cả thế giới đều phải biết!</strong></p>
+      </div>
+      <span class="letter-question">Vậy em đồng ý làm người yêu anh nha? ♡</span>
+      <div class="answer-wrap" role="group" aria-label="Trả lời">
+        <button class="btn-yes" id="btn-yes">Đồng ý ♡</button>
+        <button class="btn-no"  id="btn-no">Để em nghĩ thêm…</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ── YES OVERLAY ── -->
+<div id="yes-overlay" role="dialog" aria-modal="true" aria-label="Hạnh phúc">
+  <div class="hearts-burst" aria-hidden="true">💕</div>
+  <p class="yes-title">Huy hạnh phúc lắm,<br>Bảo Trân ơi!</p>
+  <p class="yes-sub">Hẹn gặp em sớm nhé — để Huy nói lại câu này, thật trực tiếp, thật rõ ràng. ♡</p>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   TREE DRAWING  —  recursive fractal
+══════════════════════════════════════ */
+const canvas = document.getElementById('tree-canvas');
+const ctx    = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const w = Math.min(window.innerWidth, 700);
+  canvas.width  = w;
+  canvas.height = Math.round(w * 520 / 700);
+}
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); if(treeDrawn) drawScene(1); });
+
+let treeDrawn = false;
+const COLORS = {
+  trunk: ['#5c3317','#7a4520','#6b3b1a'],
+  blossom: ['#f7c5cc','#ee9aaa','#e87089','#c0394b','#f4dde0','#fbbdc9'],
+  heart:   ['#c0394b','#e05a70','#f7c5cc'],
+  leaf:    ['#7db87a','#5a9957','#a8d5a2']
+};
+
+/* draw one branch, then recurse */
+function branch(x,y, angle, len, depth, progress) {
+  if(depth === 0 || len < 2) return;
+  const phase = depth / 10;
+  if(phase > progress) return;
+
+  const x2 = x + Math.cos(angle) * len;
+  const y2 = y - Math.sin(angle) * len;
+
+  ctx.beginPath();
+  ctx.moveTo(x,y); ctx.lineTo(x2,y2);
+  ctx.lineWidth = Math.max(0.5, depth * 0.9);
+  ctx.strokeStyle = COLORS.trunk[depth % COLORS.trunk.length];
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  const spread = 0.38 + Math.random()*0.08;
+  const shrink = 0.68 + Math.random()*0.04;
+  branch(x2,y2, angle - spread, len*shrink, depth-1, progress);
+  branch(x2,y2, angle + spread, len*shrink, depth-1, progress);
+
+  /* blossoms on tips */
+  if(depth <= 3) {
+    const col = COLORS.blossom[Math.floor(Math.random()*COLORS.blossom.length)];
+    const r = 4 + Math.random()*4;
+    ctx.beginPath();
+    ctx.arc(x2, y2, r, 0, Math.PI*2);
+    ctx.fillStyle = col;
+    ctx.globalAlpha = 0.82;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* tiny SVG-style heart on canvas */
+function drawHeart(cx,cy,size,color,alpha=1) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.translate(cx,cy);
+  const s = size/10;
+  ctx.scale(s,s);
+  ctx.moveTo(0,-2);
+  ctx.bezierCurveTo(-5,-8,-10,-2,-10,3);
+  ctx.bezierCurveTo(-10,8,0,14,0,14);
+  ctx.bezierCurveTo(0,14,10,8,10,3);
+  ctx.bezierCurveTo(10,-2,5,-8,0,-2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+
+/* scatter hearts on branch tips */
+const heartPositions = [];
+function scatterHearts(x,y,angle,len,depth) {
+  if(depth===0||len<2) return;
+  const x2=x+Math.cos(angle)*len, y2=y-Math.sin(angle)*len;
+  if(depth<=2) heartPositions.push({x:x2,y:y2});
+  const spread=0.38, shrink=0.72;
+  scatterHearts(x2,y2,angle-spread,len*shrink,depth-1);
+  scatterHearts(x2,y2,angle+spread,len*shrink,depth-1);
+}
+
+function drawScene(progress) {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const cx = canvas.width/2, baseY = canvas.height - 20;
+  branch(cx, baseY, Math.PI/2, canvas.height*0.26, 10, progress);
+  if(progress >= 1) {
+    heartPositions.forEach((p,i) => {
+      const col = COLORS.heart[i % COLORS.heart.length];
+      drawHeart(p.x, p.y, 13+Math.random()*8, col, 0.85);
+    });
+  }
+}
+
+/* pre-compute heart positions (stable) */
+function precompute() {
+  heartPositions.length = 0;
+  const cx=canvas.width/2, baseY=canvas.height-20;
+  scatterHearts(cx,baseY,Math.PI/2,canvas.height*0.26,10);
+}
+
+/* animate tree growth */
+function animateTree(cb) {
+  precompute();
+  let start=null, dur=3200;
+  function frame(ts) {
+    if(!start) start=ts;
+    const p = Math.min((ts-start)/dur, 1);
+    const eased = p<0.5 ? 2*p*p : -1+(4-2*p)*p;
+    drawScene(eased);
+    if(p<1) requestAnimationFrame(frame);
+    else { drawScene(1); treeDrawn=true; cb&&cb(); }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ══════════════════════════════════════
+   FALLING PETALS
+══════════════════════════════════════ */
+function spawnPetals(n=24) {
+  const bg = document.getElementById('petals-bg');
+  for(let i=0;i<n;i++) {
+    const p = document.createElement('div');
+    p.className = 'petal';
+    const col = COLORS.blossom[Math.floor(Math.random()*COLORS.blossom.length)];
+    p.style.cssText = `
+      left:${Math.random()*100}vw;
+      top:${Math.random()*-30}px;
+      background:${col};
+      width:${7+Math.random()*8}px;
+      height:${7+Math.random()*8}px;
+      border-radius:${Math.random()>0.5?'50% 0':'50%'};
+      animation-duration:${4+Math.random()*7}s;
+      animation-delay:${Math.random()*5}s;
+      transform:rotate(${Math.random()*360}deg);
+    `;
+    bg.appendChild(p);
+  }
+}
+
+/* ══════════════════════════════════════
+   ORCHESTRATION
+══════════════════════════════════════ */
+document.getElementById('heart-btn').addEventListener('click', () => {
+  const opening = document.getElementById('opening');
+  const main    = document.getElementById('main');
+  const letter  = document.getElementById('letter-section');
+
+  opening.classList.add('fade-out');
+  setTimeout(() => {
+    opening.style.display = 'none';
+    main.classList.add('visible');
+    spawnPetals(30);
+    animateTree(() => {
+      setTimeout(() => letter.classList.add('show'), 400);
+    });
+  }, 1200);
+});
+
+/* answer buttons */
+document.getElementById('btn-yes').addEventListener('click', () => {
+  document.getElementById('yes-overlay').classList.add('show');
+  spawnPetals(50);
+});
+
+let noClickCount = 0;
+const noMessages = [
+  'Thử lại đi em… ♡',
+  'Huy biết em muốn đồng ý mà 😊',
+  'Chỉ cần một cú nhấn thôi! ♡',
+  'Oke em cứ nghĩ thêm… Huy chờ được 🥺'
+];
+document.getElementById('btn-no').addEventListener('click', function() {
+  this.textContent = noMessages[Math.min(noClickCount, noMessages.length-1)];
+  noClickCount++;
+  this.style.transform = `translateX(${(Math.random()-0.5)*40}px)`;
+  setTimeout(()=>this.style.transform='',400);
+});
+</script>
+</body>
+</html>
