@@ -313,7 +313,10 @@
 
 <script>
 /* ══════════════════════════════════════
-   TREE DRAWING  —  recursive fractal
+   TREE  —  segment-list approach
+   Build all segments first (BFS order),
+   then animate each one growing from
+   its start point to its end point.
 ══════════════════════════════════════ */
 const canvas = document.getElementById('tree-canvas');
 const ctx    = canvas.getContext('2d');
@@ -324,58 +327,82 @@ function resizeCanvas() {
   canvas.height = Math.round(w * 520 / 700);
 }
 resizeCanvas();
-window.addEventListener('resize', () => { resizeCanvas(); if(treeDrawn) drawScene(1); });
+window.addEventListener('resize', () => { resizeCanvas(); if(treeDrawn) redrawFull(); });
 
 let treeDrawn = false;
 const COLORS = {
-  trunk: ['#5c3317','#7a4520','#6b3b1a'],
+  trunk:   ['#5c3317','#7a4520','#6b3b1a'],
   blossom: ['#f7c5cc','#ee9aaa','#e87089','#c0394b','#f4dde0','#fbbdc9'],
   heart:   ['#c0394b','#e05a70','#f7c5cc'],
-  leaf:    ['#7db87a','#5a9957','#a8d5a2']
 };
 
-/* draw one branch, then recurse */
-function branch(x,y, angle, len, depth, progress) {
-  if(depth === 0 || len < 2) return;
-  const phase = depth / 10;
-  if(phase > progress) return;
+/* ── 1. Build the full segment list (BFS so parent always before child) ── */
+let segments = [];   /* {x1,y1,x2,y2, depth, blossomColor, blossomR} */
+let heartSegs = [];  /* {x,y} tip positions for hearts */
 
-  const x2 = x + Math.cos(angle) * len;
-  const y2 = y - Math.sin(angle) * len;
+/* Use seeded-style random so tree looks the same on redraw */
+let _seed = 42;
+function rng() { _seed = (_seed * 1664525 + 1013904223) & 0xffffffff; return (_seed >>> 0) / 0xffffffff; }
+
+function buildTree() {
+  _seed = 42;
+  segments = []; heartSegs = [];
+  const cx = canvas.width / 2, baseY = canvas.height - 18;
+  const rootLen = canvas.height * 0.26;
+
+  /* BFS queue: {x,y,angle,len,depth} */
+  const queue = [{x:cx, y:baseY, angle:Math.PI/2, len:rootLen, depth:10}];
+  while(queue.length) {
+    const {x,y,angle,len,depth} = queue.shift();
+    if(depth === 0 || len < 2) continue;
+
+    const x2 = x + Math.cos(angle)*len;
+    const y2 = y - Math.sin(angle)*len;
+
+    const blossomColor = depth <= 3 ? COLORS.blossom[Math.floor(rng()*COLORS.blossom.length)] : null;
+    const blossomR     = depth <= 3 ? 4 + rng()*4 : 0;
+    segments.push({x1:x,y1:y,x2,y2,depth,blossomColor,blossomR});
+
+    if(depth <= 2) heartSegs.push({x:x2, y:y2});
+
+    const spread = 0.36 + rng()*0.08;
+    const shrink = 0.68 + rng()*0.04;
+    queue.push({x:x2,y:y2, angle:angle-spread, len:len*shrink, depth:depth-1});
+    queue.push({x:x2,y:y2, angle:angle+spread, len:len*shrink, depth:depth-1});
+  }
+}
+
+/* ── 2. Draw a single segment grown to fraction t ∈ [0,1] ── */
+function drawSegment(seg, t) {
+  const {x1,y1,x2,y2,depth,blossomColor,blossomR} = seg;
+  const px = x1 + (x2-x1)*t;
+  const py = y1 + (y2-y1)*t;
 
   ctx.beginPath();
-  ctx.moveTo(x,y); ctx.lineTo(x2,y2);
-  ctx.lineWidth = Math.max(0.5, depth * 0.9);
+  ctx.moveTo(x1,y1); ctx.lineTo(px,py);
+  ctx.lineWidth = Math.max(0.5, depth * 0.88);
   ctx.strokeStyle = COLORS.trunk[depth % COLORS.trunk.length];
   ctx.lineCap = 'round';
   ctx.stroke();
 
-  const spread = 0.38 + Math.random()*0.08;
-  const shrink = 0.68 + Math.random()*0.04;
-  branch(x2,y2, angle - spread, len*shrink, depth-1, progress);
-  branch(x2,y2, angle + spread, len*shrink, depth-1, progress);
-
-  /* blossoms on tips */
-  if(depth <= 3) {
-    const col = COLORS.blossom[Math.floor(Math.random()*COLORS.blossom.length)];
-    const r = 4 + Math.random()*4;
+  if(t >= 1 && blossomColor) {
     ctx.beginPath();
-    ctx.arc(x2, y2, r, 0, Math.PI*2);
-    ctx.fillStyle = col;
+    ctx.arc(x2, y2, blossomR, 0, Math.PI*2);
+    ctx.fillStyle = blossomColor;
     ctx.globalAlpha = 0.82;
     ctx.fill();
     ctx.globalAlpha = 1;
   }
 }
 
-/* tiny SVG-style heart on canvas */
+/* ── 3. Heart drawing ── */
 function drawHeart(cx,cy,size,color,alpha=1) {
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.beginPath();
   ctx.translate(cx,cy);
   const s = size/10;
   ctx.scale(s,s);
+  ctx.beginPath();
   ctx.moveTo(0,-2);
   ctx.bezierCurveTo(-5,-8,-10,-2,-10,3);
   ctx.bezierCurveTo(-10,8,0,14,0,14);
@@ -386,50 +413,78 @@ function drawHeart(cx,cy,size,color,alpha=1) {
   ctx.restore();
 }
 
-/* scatter hearts on branch tips */
-const heartPositions = [];
-function scatterHearts(x,y,angle,len,depth) {
-  if(depth===0||len<2) return;
-  const x2=x+Math.cos(angle)*len, y2=y-Math.sin(angle)*len;
-  if(depth<=2) heartPositions.push({x:x2,y:y2});
-  const spread=0.38, shrink=0.72;
-  scatterHearts(x2,y2,angle-spread,len*shrink,depth-1);
-  scatterHearts(x2,y2,angle+spread,len*shrink,depth-1);
-}
-
-function drawScene(progress) {
+/* ── 4. Redraw entire finished tree (used after resize) ── */
+function redrawFull() {
+  buildTree();
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  const cx = canvas.width/2, baseY = canvas.height - 20;
-  branch(cx, baseY, Math.PI/2, canvas.height*0.26, 10, progress);
-  if(progress >= 1) {
-    heartPositions.forEach((p,i) => {
-      const col = COLORS.heart[i % COLORS.heart.length];
-      drawHeart(p.x, p.y, 13+Math.random()*8, col, 0.85);
-    });
-  }
+  segments.forEach(s => drawSegment(s,1));
+  heartSegs.forEach((p,i)=>{
+    drawHeart(p.x,p.y, 13+((i*7)%8), COLORS.heart[i%COLORS.heart.length], 0.85);
+  });
 }
 
-/* pre-compute heart positions (stable) */
-function precompute() {
-  heartPositions.length = 0;
-  const cx=canvas.width/2, baseY=canvas.height-20;
-  scatterHearts(cx,baseY,Math.PI/2,canvas.height*0.26,10);
-}
-
-/* animate tree growth */
+/* ── 5. Main animation  ── */
+/*
+   Timeline:
+   - Phase A (0 → growDur): segments grow one-by-one, each taking segDur ms.
+     Each segment animates its own t from 0→1 (easeInOutQuad).
+     Segments overlap slightly so it feels like a continuous flow.
+   - Phase B (growDur → growDur+bloomDur): hearts bloom in, staggered.
+*/
 function animateTree(cb) {
-  precompute();
-  let start=null, dur=3200;
+  buildTree();
+  const totalSegs  = segments.length;
+  const overlap    = 0.76;            /* more overlap = faster overall growth */
+  const targetGrow = 1700;           /* target branch growth duration in ms */
+  const segDur     = totalSegs > 1
+    ? targetGrow / (((totalSegs - 1) * overlap) + 1)
+    : targetGrow;
+  const bloomDur   = 550;            /* total ms for hearts to bloom */
+
+  /* When does segment i start? */
+  const segStart = i => i * segDur * overlap;
+  const growDur  = segStart(totalSegs - 1) + segDur;
+
+  function eio(t) { return t<0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+  let startTime = null;
+
   function frame(ts) {
-    if(!start) start=ts;
-    const p = Math.min((ts-start)/dur, 1);
-    const eased = p<0.5 ? 2*p*p : -1+(4-2*p)*p;
-    drawScene(eased);
-    if(p<1) requestAnimationFrame(frame);
-    else { drawScene(1); treeDrawn=true; cb&&cb(); }
+    if(!startTime) startTime = ts;
+    const elapsed = ts - startTime;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    /* Phase A — branches */
+    for(let i=0;i<totalSegs;i++) {
+      const t0 = segStart(i);
+      const raw = (elapsed - t0) / segDur;
+      if(raw <= 0) continue;
+      drawSegment(segments[i], eio(Math.min(raw,1)));
+    }
+
+    /* Phase B — hearts bloom after all branches done */
+    if(elapsed > growDur) {
+      const bloomElapsed = elapsed - growDur;
+      heartSegs.forEach((p,i) => {
+        const delay = (i / heartSegs.length) * bloomDur * 0.6;
+        const raw   = (bloomElapsed - delay) / 280;
+        if(raw <= 0) return;
+        const t = eio(Math.min(raw,1));
+        const size = (13+((i*7)%8)) * t;
+        const alpha = 0.85 * t;
+        drawHeart(p.x,p.y,size,COLORS.heart[i%COLORS.heart.length],alpha);
+      });
+    }
+
+    const done = elapsed >= growDur + bloomDur + 200;
+    if(!done) requestAnimationFrame(frame);
+    else { treeDrawn=true; cb&&cb(); }
   }
+
   requestAnimationFrame(frame);
 }
+
 
 /* ══════════════════════════════════════
    FALLING PETALS
